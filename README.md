@@ -15,3 +15,6 @@ Our objectives for this project are to answer the below two questions:
 
 * Which online advertising mechanism has a higher quality lead?
 * How to better allocate spend on each online advertising social platform?
+
+## Analysis
+https://hehuiyin.github.io/UCI-Merage-Online-Ads/
