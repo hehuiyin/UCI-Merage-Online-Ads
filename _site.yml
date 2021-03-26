@@ -1,0 +1,13 @@
+name: "UCI Merage Online Ads"
+navbar:
+  title: "UCI Merage Online Ads"
+  left:
+    - text: "About"
+      href: about.html
+    - text: "Analysis"
+      href: index.html
+Output:
+  html_document:
+    theme: cosmo
+    highlight: textmate
+output_dir: "docs"

@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Huiyin(Cloris) He" />
+
+
+<title>UCI Merage Online Advertising Analysis</title>
+
+<script src="site_libs/header-attrs-2.7/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/htmlwidgets-1.5.3/htmlwidgets.js"></script>
+<script src="site_libs/d3-4.5.0/d3.min.js"></script>
+<script src="site_libs/sankey-1/sankey.js"></script>
+<script src="site_libs/sankeyNetwork-binding-0.4/sankeyNetwork.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+.tocify-subheader {
+  display: inline;
+}
+.tocify-subheader .tocify-item {
+  font-size: 0.95em;
+}
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-sm-12 col-md-4 col-lg-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-sm-12 col-md-8 col-lg-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">UCI Merage Online Ads</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="index.html">Analysis</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">UCI Merage Online Advertising Analysis</h1>
+<h4 class="author">Huiyin(Cloris) He</h4>
+<h4 class="date">3/26/2021</h4>
+
+</div>
+
+
+<div id="part-1.-lead-source-analysis" class="section level1">
+<h1>Part 1. Lead Source Analysis</h1>
+<p><em>Lead Source: the source of applicants enter the system</em></p>
+<div id="a.-exploratory-data-analysis" class="section level2">
+<h2>A. Exploratory Data Analysis</h2>
+<pre class="r"><code># FT VS FE
+ggplot(data,aes(x = Program)) + geom_bar()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<pre class="r"><code># Distribution of inquiry and application stages
+ggplot(data,aes(x = forcats::fct_infreq(`Student Stage`))) + #infreg sort by freq
+  geom_bar() + 
+  labs(x = &quot;Application Stages&quot;, y = &quot;Count&quot;) </code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code># Application each year
+ggplot(data, aes(x = `start_year`)) +
+  geom_bar() +
+  labs(x = &quot;Account Created in _ Year&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-2.png" width="672" /></p>
+<pre class="r"><code># Application each month
+ggplot(data, aes(x = `start_month`)) +
+  geom_bar() + labs(x = &quot;Account Created in _ Month&quot;, y = &quot;Count&quot;) </code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-3.png" width="672" /></p>
+<pre class="r"><code># Application stages breakdown by year
+ggplot(data, aes(x = forcats::fct_infreq(`Student Stage`))) +
+  geom_bar() +
+  facet_wrap(facets = vars(start_year)) +
+  labs(x = &quot;Application Stages&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-4.png" width="672" /></p>
+<pre class="r"><code># Application stages breakdown by Program
+ggplot(data, aes(x = forcats::fct_infreq(`Student Stage`))) +
+  geom_bar() +
+  facet_wrap(facets = vars(Program)) +
+  labs(x = &quot;Application Stages&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-5.png" width="672" /></p>
+<pre class="r"><code># Distribution of application status
+ggplot(data,aes(x = forcats::fct_infreq(`Last App Status`))) + 
+  geom_bar()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(data[!is.na(data$`Last App Status`),],
+       aes(x = forcats::fct_infreq(`Last App Status`))) + 
+  geom_bar() +
+  labs(x = &quot;Last App Status Excluding NA&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-2.png" width="672" /></p>
+<pre class="r"><code>### Sankey diagram for an overall understanding ####
+links &lt;- data.frame(
+  source=c(&quot;Potential applicants&quot;,&quot;Potential applicants&quot;, &quot;Applied&quot;, &quot;Applied&quot;,
+           &quot;Applied&quot;, &quot;Applied&quot;, &quot;Applied&quot;, &quot;Archived (with result)&quot;, 
+           &quot;Archived (with result)&quot;, &quot;Archived (with result)&quot;, &quot;Inquired only&quot;,
+           &quot;Inquired only&quot;,&quot;Inquired only&quot;,&quot;Inquired only&quot;),
+  target=c(&quot;Inquired only&quot;,&quot;Applied&quot;, &quot;Archived (with result)&quot;, &quot;Incomplete&quot;, 
+           &quot;In Progress&quot;, &quot;Withdraw&quot;, &quot;&lt;NA&gt;&quot;,&quot;Deny&quot;, &quot;Decline&quot;, &quot;Enrolled&quot;,
+           &quot;&lt;NA&gt;&quot;, &quot;In Progress&quot;, &quot;Incomplete&quot;, &quot;Withdraw&quot;), 
+  value=c(5114,1171, 418, 1, 7, 1, 743, 206, 84, 129,4471, 604,20, 19)
+)
+nodes &lt;- data.frame(
+  name=c(as.character(links$source), 
+         as.character(links$target)) %&gt;% unique()
+)
+links$IDsource &lt;- match(links$source, nodes$name)-1 
+links$IDtarget &lt;- match(links$target, nodes$name)-1
+
+p &lt;- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = &quot;IDsource&quot;, Target = &quot;IDtarget&quot;,
+                   Value = &quot;value&quot;, NodeID = &quot;name&quot;, 
+                   sinksRight=FALSE)
+p</code></pre>
+<div id="htmlwidget-27de5207d9c8b74529ed" style="width:672px;height:480px;" class="sankeyNetwork html-widget"></div>
+<script type="application/json" data-for="htmlwidget-27de5207d9c8b74529ed">{"x":{"links":{"source":[0,0,1,1,1,1,1,2,2,2,3,3,3,3],"target":[3,1,2,4,5,6,7,8,9,10,7,5,4,6],"value":[5114,1171,418,1,7,1,743,206,84,129,4471,604,20,19]},"nodes":{"name":["Potential applicants","Applied","Archived (with result)","Inquired only","Incomplete","In Progress","Withdraw","<NA>","Deny","Decline","Enrolled"],"group":["Potential applicants","Applied","Archived (with result)","Inquired only","Incomplete","In Progress","Withdraw","<NA>","Deny","Decline","Enrolled"]},"options":{"NodeID":"name","NodeGroup":"name","LinkGroup":null,"colourScale":"d3.scaleOrdinal(d3.schemeCategory20);","fontSize":7,"fontFamily":null,"nodeWidth":15,"nodePadding":10,"units":"","margin":{"top":null,"right":null,"bottom":null,"left":null},"iterations":32,"sinksRight":false}},"evals":[],"jsHooks":[]}</script>
+<p>From the Sankey diagram, we see that a majority of the applicants do not apply but instead submit an inquiry to learn more about the programs offered.</p>
+<p>From our dataset, out of the 6,285 people, 81% inquired but less than 20% actually apply. Among those who applied, 35% of the applications are archived meaning the application process is complete. Of those who submitted an application, half of them were denied, 20% declined the school’s offer, while 30% enrolled into the program. We also observed that only 2% of those who inquired will also enroll into the program.</p>
+<pre class="r"><code># Distribution of salutation
+ggplot(data,aes(x = Salutation)) + geom_bar()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<pre class="r"><code># Distribution of the lead source
+table(data$`Lead Source`,useNA = &quot;always&quot;)</code></pre>
+<pre><code>## 
+##                    Events                  Facebook               Forte Forum 
+##                         4                        24                        38 
+##         GMASS List Upload         GMAT Score Sender                 Grad Fair 
+##                       192                        73                        92 
+##          GRE Score Sender       Hobsons Legacy Data     Internal Inquiry Form 
+##                        30                        99                       274 
+##                  LinkedIn        Online Application Online Event Registration 
+##                        32                      2318                       723 
+##                     Other     Qualified List Upload   Unqualified List Upload 
+##                         2                      1065                        18 
+##          Web Inquiry Form            World MBA Tour                  YouVisit 
+##                       747                       545                         9 
+##                      &lt;NA&gt; 
+##                         0</code></pre>
+<pre class="r"><code># lead source with our category
+table(data$lead_categ,useNA = &quot;always&quot;)</code></pre>
+<pre><code>## 
+##  events  online  others  scores  social uploads    &lt;NA&gt; 
+##    1364    3103      11     103      56    1648       0</code></pre>
+<pre class="r"><code># Distribution of the time it takes to apply, excluding inquiries
+ggplot(data[data$`Student Stage` != &quot;Inquiry&quot;,], 
+       aes(x = duration, fill = `Last App Status`)) + 
+  geom_histogram(bins = 20, position = &quot;stack&quot;) + 
+  labs(x = &quot;Duration (days)&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-2.png" width="672" /></p>
+<pre class="r"><code># subset: look at data between 100 - 500 days
+ggplot(subset(data[data$`Student Stage` != &quot;Inquiry&quot;,],
+              duration&gt;=100 &amp; duration &lt; 500), 
+       aes(x = duration, fill = `Last App Status`)) + 
+  geom_histogram(bins = 20, position = &quot;stack&quot;) + 
+  labs(x = &quot;Duration (days)&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-3.png" width="672" /></p>
+<p>We observed the duration of time applicants took to apply. The bar chart shows the number of days it took to apply versus the frequency of applicants. Because most of the data points fall between Day 100 and Day 400, we focused on that specific time range. Our dataset contains a significant amount of NA values but the number of NA values drop significantly after Day 175. We assume that this is because applicants will consider whether to apply for five months before they drop it completely.</p>
+<pre class="r"><code># Application enrollment by month
+ggplot(data[data$`Last App Status` != &quot;NA&quot;,], 
+       aes(x = `start_month`, fill = `Last App Status`)) +
+  geom_bar() + labs(x = &quot;Start Month and Status (no NA)&quot;, y = &quot;Count&quot;) +
+  scale_x_discrete(breaks=factor(1:12), limit = c(factor(1:12)))</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>The bar chart portrays when students first fill out an inquiry form. We can see that there is an increase of people seeking information on the Merage website from September to January. From a marketing standpoint, we can conclude that the best time for Merage to launch their marketing campaign is during September to January where there is a five month window to persuade a prospect to apply.</p>
+<pre class="r"><code># Duration (days) by start month
+ggplot(subset(data[data$`Student Stage` != &quot;Inquiry&quot;,],
+              duration&gt;=100 &amp; duration &lt; 500 &amp; is.na(`Last App Status`) == FALSE), 
+       aes(x = duration, fill = `Last App Status`)) + geom_histogram(position = &quot;dodge&quot;) +
+  facet_wrap(facets = vars(start_month)) +
+  labs(x = &quot;Duration (days) by start month, excluding NA&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<pre class="r"><code># Duration (days) by start month, Enrolled Only
+ggplot(subset(data[data$`Student Stage` != &quot;Inquiry&quot;,],
+              duration&gt;=100 &amp; duration &lt; 500 &amp; `Last App Status` == &quot;Enrolled&quot;), 
+       aes(x = duration, fill = `Last App Status`)) + geom_histogram(position = &quot;dodge&quot;) +
+  facet_wrap(facets = vars(start_month)) +
+  labs(x = &quot;Duration (days) by start month, Enrolled Only&quot;, y = &quot;Count&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-2.png" width="672" /></p>
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" width="2880" /></p>
+<p>We can see where the source of applicants enter the system or also known as the lead source. Some applicants fill out a form to get more information by submitting a Web Inquiry Form, others attend an event (Online Event Registration) but the majority start an application without attending an event or inquiring through the web form (Online Application).</p>
+</div>
+<div id="b.-logistic-regression" class="section level2">
+<h2>B. Logistic Regression</h2>
+<pre class="r"><code>## Regression Model ####
+data_m &lt;- data[,9:15] # the data we will use for the model
+# eyeballing variable distribution
+before_log &lt;- ggplot(data_m, aes(duration)) + geom_histogram()
+before_log</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code># duration variable take log
+data_m$duration &lt;- log(data_m$duration+1)
+after_log &lt;- ggplot(data_m, aes(duration)) + geom_histogram()
+after_log</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-2.png" width="672" /></p>
+<pre class="r"><code># most variables are factors, not numeric
+data_m[,1:6] &lt;- lapply((data_m[,1:6]),factor)</code></pre>
+<p>The distribution of the duration variable showed that it is heavily right skewed so log transformation of the duration variable is necessary.</p>
+<div id="resampling" class="section level3">
+<h3>Resampling</h3>
+<p>In our dataset, there is a drastic difference from the number of applicants that chose not to enroll even after receiving an acceptance offer (129 vs 942). Due to this significant imbalance, we proceeded to resample our dataset using SMOTE (Synthetic Minority Oversampling Technique).</p>
+<pre class="r"><code>### SMOTE ####
+data_m &lt;- as.data.frame(data_m)
+table(data$status_bin)</code></pre>
+<pre><code>## 
+##   0   1 
+## 942 129</code></pre>
+</div>
+<div id="building-the-model" class="section level3">
+<h3>Building the model</h3>
+<pre class="r"><code>#### model 3: larger k (different percentage, lower total samples) ####
+set.seed(162)
+data_smote3 &lt;- SMOTE(status_bin ~.,data_m, perc.over = 200, k=5, perc.under = 1000)
+table(data_smote3$status_bin)</code></pre>
+<pre><code>## 
+##   0   1 
+## 394 387</code></pre>
+<pre class="r"><code>Train3 &lt;- createDataPartition(data_smote3$status_bin, p=0.8, list=FALSE)
+training3 &lt;- data_smote3[ Train3, ]
+testing3 &lt;- data_smote3[ -Train3, ]
+
+m.smote3 &lt;- glm(status_bin ~ . -status_bin, data = training3, family = binomial())
+summary(m.smote3)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = status_bin ~ . - status_bin, family = binomial(), 
+##     data = training3)
+## 
+## Deviance Residuals: 
+##    Min      1Q  Median      3Q     Max  
+## -3.276  -0.953   0.156   0.929   2.281  
+## 
+## Coefficients:
+##                    Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)        1.85e+01   6.58e+00    2.82  0.00479 ** 
+## FT1               -7.51e-01   3.92e-01   -1.91  0.05569 .  
+## gender1           -3.68e-01   3.91e-01   -0.94  0.34688    
+## lead_categonline  -1.26e+00   5.57e-01   -2.27  0.02329 *  
+## lead_categscores  -9.35e-01   8.79e-01   -1.06  0.28749    
+## lead_categsocial  -1.91e+01   2.40e+03   -0.01  0.99364    
+## lead_categuploads -1.96e-02   6.74e-01   -0.03  0.97681    
+## start_month2      -1.20e+00   8.16e-01   -1.47  0.14063    
+## start_month3      -2.48e+00   9.33e-01   -2.65  0.00793 ** 
+## start_month4      -6.14e-01   8.53e-01   -0.72  0.47179    
+## start_month5      -3.07e+00   1.16e+00   -2.64  0.00823 ** 
+## start_month6      -1.81e+01   1.69e+03   -0.01  0.99145    
+## start_month7      -4.43e+00   1.31e+00   -3.38  0.00071 ***
+## start_month8       1.50e+01   1.66e+03    0.01  0.99280    
+## start_month9      -1.13e-01   7.96e-01   -0.14  0.88670    
+## start_month10      2.14e-01   7.93e-01    0.27  0.78738    
+## start_month11      1.52e-03   7.75e-01    0.00  0.99843    
+## start_month12      3.98e-01   9.33e-01    0.43  0.66944    
+## start_year2017    -6.88e-01   1.34e+00   -0.51  0.60724    
+## start_year2018    -1.18e+00   1.39e+00   -0.85  0.39519    
+## start_year2019    -4.54e-01   1.59e+00   -0.29  0.77552    
+## duration          -2.69e+00   9.65e-01   -2.78  0.00536 ** 
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 254.99  on 183  degrees of freedom
+## Residual deviance: 199.54  on 162  degrees of freedom
+##   (2191 observations deleted due to missingness)
+## AIC: 243.5
+## 
+## Number of Fisher Scoring iterations: 15</code></pre>
+<p>The result shows that many variables are insignificant to our model. Those that are statistically significant to our model are negative, meaning that if an applicant falls into one of the categories, it will actually decrease their chances of being enrolled.</p>
+<p>Even though insignificant, start_month 8,10,11,12 shows a positive relationship with enrollment. These months do have some positive impacts on enrollment.</p>
+<p>However, the issue with this model is that the dataset and model do not take other factors into account of whether a student will be enrolled or not such as GPA, school, career path, and so on. There may be potentially a more significant relationship if we examined these predictors in order to accurately predict the outcome of an applicant’s status.</p>
+</div>
+</div>
+</div>
+<div id="part-2.-social-platform-analysis" class="section level1">
+<h1>Part 2. Social Platform Analysis</h1>
+<div id="a.-cross-platform-analysis" class="section level2">
+<h2>A. Cross-Platform Analysis</h2>
+<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" width="1920" /></p>
+<p>Merage spent most of their advertising budget on LinkedIn and Google Ads. From these campaigns, Google Search Ads and LinkedIn Sponsored InMail generated the most advertising spend. According to Merage’s marketing team, we were informed that more money is spent towards LinkedIn for advertising MBA programs because of the higher quality conversion rate, meaning that more candidates are admitted from LinkedIn.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-21-1.png" width="1920" /></p>
+<p>The click-through-rate (CTR) measures the percentage of people who view and click on Merage’s ads. Using the CTR to evaluate the social platform’s performance, we found that LinkedIn has an extremely high CTR of 65% because of LinkedIn Sponsored InMail.</p>
+<p>However, after researching the actual metric definition of InMail, the CTR is actually calculated as the number of messages opened by a user divided by the total number of InMail sent. Users are naturally curious about what is being sent to their inbox and therefore, they are more inclined to open the message. Users must click on the InMail to view the actual content of the advertisement. Because InMail measures its CTR based on if a user clicks on the message but not if they click on the link within, we proceeded to calculate the rate of call to action instead. Because the action of a user opening an InMail has essentially the same impact as a user seeing a display advertisement on Google or Facebook, it is not a significant impact. So, by measuring the call to action rate instead, this determines how many users actually interact with the advertisement based on the number of button or hyperlink clicks.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-22-1.png" width="1920" /></p>
+<p>After updating our formulation to calculate CTA, this is a better measure to test the effectiveness of LinkedIn’s campaigns. The CTR of InMail drops from 65% to 3% but LinkedIn still remains the highest among all campaign types across the platform.</p>
+<p>We then evaluated the cost-per-click (CPC) in order to identify how much money Merage spends on each click on various social platforms. The CPC for InMail is higher than other campaign types most likely due to the fact that its charged by how many messages are sent. As a result, Merage may need to allocate less money on LinkedIn InMail because it is costly.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-23-1.png" width="1920" /></p>
+<p>Observing that InMail has both a high CTR and CPC, it is quite a costly approach but it does attract potential applicants. On the other hand, the CTR of Facebook and Google display ads are very low, assuming that prospects that visit websites typically do not pay much attention to apparent advertisement. Consequently, even though the CPC is low, display ads might not be enough to drive a call-to-action.</p>
+</div>
+<div id="b.-facebook-instagram" class="section level2">
+<h2>B. Facebook &amp; Instagram</h2>
+<p><img src="index_files/figure-html/unnamed-chunk-24-1.png" width="1920" /> The sponsored post on Facebook for FEMBA (orange dot) did not generate a high CTR despite its high cost to run the marketing campaign. After noticing Facebook’s ineffective advertisements, Merage can consider changing either the message, visuals, or placement of the advertisement in order to improve its conversions.</p>
+<p>Whereas for the Lead Gen for FTMBA campaign (pink dot), the campaign produced a high CTR at a low cost. Because of the high conversions of the FTMBA’s advertisements, Merage can consider allocating the budget more towards this campaign.</p>
+</div>
+<div id="c.-google-ads" class="section level2">
+<h2>C. Google Ads</h2>
+<p><img src="index_files/figure-html/unnamed-chunk-25-1.png" width="1920" /></p>
+<p>The tree map shows the various sizes of the total cost and CTR for each campaign displayed on the Google platform. The colors represent the CTR and the size of the box represent the total cost. From the visualization, the search ads for FEMBA have the highest spending and a significantly high CTR. Additionally, the search ads for FTMBA also generated a high CTR with relatively low costs. From this observation, we suggest that Merage may want to shift their focus from display ads to Google search ads instead.</p>
+</div>
+<div id="d.-linkedin" class="section level2">
+<h2>D. Linkedin</h2>
+<p><img src="index_files/figure-html/unnamed-chunk-26-1.png" width="1920" /></p>
+<p>The tree map depicts the total spending of each campaign and its respective CTR. There is a disconnect between the size and the color, meaning that the marketing team is not distributing most of the budget to the best performing campaigns. For example, FEMBA Inmail LA &amp; OC October and November campaigns have high CTR but not much spending compared to the campaigns in January and June.</p>
+<p>We noticed that October and November are the most popular times to apply for the MBA program. January is the standard MBA deadline for the second round of application submissions along with the last deadline being in June, which explains the low CTR for those two months. Comparatively, October and November are the most efficient time to attract students. Therefore, the team may consider putting more of the budget on the October and November campaigns.</p>
+</div>
+</div>
+<div id="part-3.-google-keyword-analysis" class="section level1">
+<h1>Part 3. Google Keyword Analysis</h1>
+<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" width="1920" /></p>
+<div id="ridge-regression" class="section level2">
+<h2>Ridge Regression</h2>
+<pre class="r"><code>## ridge regression####
+#find the best lambda
+set.seed(123)
+cv_output1 &lt;- cv.glmnet(xvar[train,], yvar[train], alpha=0,
+                        lambda = lamb)
+best_lambda1 &lt;- cv_output1$lambda.min
+best_lambda1=format(round(best_lambda1, 7), nsmall = 7)
+
+#plot the lambda
+plot(cv_output1) </code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-30-1.png" width="672" /></p>
+<pre class="r"><code>#the cross-validation curve (red dotted line)
+#The intervals estimate variance of the loss metric (red dots). 
+#They&#39;re computed using CV.
+#The vertical lines show the locations of 𝜆min (minimum mean cross-validated error)
+#The numbers across the top are the number of nonzero coefficient estimates.
+
+#the model using the lambda value
+ridge &lt;- glmnet(xvar[train,], yvar[train], alpha = 0, 
+                lambda = best_lambda1)
+
+#perform on test data
+pred1 &lt;- predict(ridge, s = best_lambda1, newx = xvar[test,])
+
+#coef
+#coef(ridge)
+
+#check MSE
+MSE_ridge=mean((pred1-yvar[test])^2)
+MSE_ridge=format(round(MSE_ridge, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse1 = sum((pred1 - yvar[test])^2)
+#R-squared
+r=(1-sse1/sst)
+r=format(round(r, 7), nsmall = 7)
+
+ridge_perf=data.frame(MSE_ridge=MSE_ridge,R_squared_ridge=r)
+ridge_perf</code></pre>
+<pre><code>##   MSE_ridge R_squared_ridge
+## 1 0.1116399       0.6999712</code></pre>
+</div>
+<div id="lasso-regression" class="section level2">
+<h2>Lasso Regression</h2>
+<pre class="r"><code>## lasso####
+#k-fold cross-validation to find optimal lambda value
+#default k=10
+set.seed(123)
+cv_output = cv.glmnet(xvar[train,], yvar[train], alpha=1,
+                      lambda = lamb)
+
+#optimal lambda value that minimizes test MSE
+best_lambda = cv_output$lambda.min
+best_lambda</code></pre>
+<pre><code>## [1] 0.004</code></pre>
+<pre class="r"><code>#plot lambda
+plot(cv_output) </code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-31-1.png" width="672" /></p>
+<pre class="r"><code># Rebuilding the model with best lamda value identified
+lasso = glmnet(xvar[train,], yvar[train], alpha = 1, lambda = best_lambda)
+#coef(lasso)
+
+#predict on test data
+pred = predict(lasso, s = best_lambda, newx = xvar[test,])
+
+#check MSE
+MSE_lasso=mean((pred-yvar[test])^2)
+MSE_lasso=format(round(MSE_lasso, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse = sum((pred - yvar[test])^2)
+#R-squared
+r1=1-sse/sst
+r1=format(round(r1, 7), nsmall = 7)
+
+lasso_perf=data.frame(MSE_lasso=MSE_lasso,R_squared_lasso=r1)
+lasso_perf</code></pre>
+<pre><code>##   MSE_lasso R_squared_lasso
+## 1 0.1113068       0.7008664</code></pre>
+</div>
+<div id="elastic-net-regression" class="section level2">
+<h2>Elastic Net Regression</h2>
+<pre class="r"><code>## elastic net####
+#test for the best alpha
+set.seed(123)
+list_fit=list()
+for (i in 0:10){
+  fit_name=paste0(&#39;alpha&#39;,i/10)
+  list_fit[[fit_name]]=cv.glmnet(xvar[train,],yvar[train],
+                                 alpha=i/10,lambda = lamb)
+}
+
+#table that store the MSE
+results=data.frame()
+for (i in 0:10){
+  fit_name=paste0(&#39;alpha&#39;,i/10)
+  predicted=predict(list_fit[[fit_name]],
+                    s=list_fit[[fit_name]]$lambda.min,
+                    newx=xvar[test,])
+  mse=mean((predicted-yvar[test])^2)
+  d=data.frame(alpha=i/10,mse=mse,fit_name=fit_name,
+               lambda=list_fit[[fit_name]]$lambda.min)
+  results=rbind(results,d)
+}
+results</code></pre>
+<pre><code>##    alpha  mse fit_name lambda
+## 1    0.0 0.11   alpha0 0.0999
+## 2    0.1 0.11 alpha0.1 0.0154
+## 3    0.2 0.11 alpha0.2 0.0431
+## 4    0.3 0.11 alpha0.3 0.0055
+## 5    0.4 0.11 alpha0.4 0.0060
+## 6    0.5 0.11 alpha0.5 0.0039
+## 7    0.6 0.11 alpha0.6 0.0059
+## 8    0.7 0.11 alpha0.7 0.0026
+## 9    0.8 0.11 alpha0.8 0.0034
+## 10   0.9 0.11 alpha0.9 0.0032
+## 11   1.0 0.11   alpha1 0.0041</code></pre>
+<pre class="r"><code>#the best alpha level
+alpha_level=results$fit_name[results$mse==min(results$mse)]
+alpha_level</code></pre>
+<pre><code>## [1] &quot;alpha0.7&quot;</code></pre>
+<pre class="r"><code>#build model based on the best alpha
+elastic &lt;- glmnet(xvar[train,], yvar[train], alpha = 0.7, 
+                  lambda = results$lambda[results$fit_name==alpha_level])
+
+pred_elas &lt;- predict(elastic, s = results$lambda[results$fit_name==alpha_level],
+                     newx = xvar[test,])
+
+#check MSE
+MSE_elas=mean((pred_elas-yvar[test])^2)
+MSE_elas=format(round(MSE_elas, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse_elas = sum((pred_elas - yvar[test])^2)
+#R-squared
+r2=1-sse_elas/sst
+r2=format(round(r2, 7), nsmall = 7)
+
+elas_perf=data.frame(MSE_elas=MSE_elas,R_squared_elas=r2)
+elas_perf</code></pre>
+<pre><code>##    MSE_elas R_squared_elas
+## 1 0.1109353      0.7018646</code></pre>
+<pre class="r"><code>#compare 3 models
+comp=data.frame(Model=c(&#39;ridge&#39;,&#39;lasso&#39;,&#39;elastic&#39;),
+                MSE=0,
+                R_square=0)
+comp[1,2]=ridge_perf[1]
+comp[2,2]=lasso_perf[1]
+comp[3,2]=elas_perf[1]
+comp[1,3]=ridge_perf[2]
+comp[2,3]=lasso_perf[2]
+comp[3,3]=elas_perf[2]
+comp</code></pre>
+<pre><code>##     Model       MSE  R_square
+## 1   ridge 0.1116399 0.6999712
+## 2   lasso 0.1113068 0.7008664
+## 3 elastic 0.1109353 0.7018646</code></pre>
+<pre class="r"><code>coef(elastic)</code></pre>
+<pre><code>## 32 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
+##                        s0
+## (Intercept)        0.7609
+## online            -0.1388
+## mba                0.1015
+## irvine             0.0326
+## femba             -0.1050
+## parttime          -0.1039
+## california         0.0794
+## degree            -0.2681
+## employed          -0.0264
+## uci               -0.0910
+## gmat               0.1814
+## program            0.0324
+## working           -0.0477
+## professionals     -0.0021
+## weekend            0.0969
+## business           0.2981
+## masters            0.0187
+## pepperdine        -0.3235
+## ftmba              0.0969
+## top               -0.6415
+## flexible           .     
+## usc               -0.1808
+## schedule           0.0431
+## best              -0.3006
+## fulltime           0.0092
+## courses            .     
+## daytime            0.0801
+## schools           -0.1659
+## online_mba         .     
+## two_yr             0.0801
+## irvine_university  .     
+## evening_mba       -0.0149</code></pre>
+<p>Comparing the results from three models, we concluded that the Elastic Net model has the best performance.</p>
+<p>Merage selected certain keywords of neighboring schools (“pepperdine”, “usc”) because we assume that there is a higher chance of local prospects residing in Southern California that may take interest in UCI and click on the link. The results of the nearby schools show that the coefficients have a negative effect on the interaction rate, suggesting that searching these other schools will not help Merage improve their interaction rate. When prospects intentionally search for other schools, they will not click on Merage’s advertisements despite the link being displayed in the Google search results. Ultimately, setting up these two keywords for nearby schools does not benefit Merage’s campaigning.</p>
+<p>Along with that, the results show that “irvine_university” was eliminated from our model, indicating that it is not a significant feature on affecting interaction rate.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-34-1.png" width="1920" /></p>
+<p>With further research, we noticed that this term is very broad and includes unrelated search words. To better evaluate the relation between target keywords and actual search terms, we reviewed all the matched search terms of the broad match term, “irvine_university.” We reviewed the search terms and examined the search records of someone who potentially was purposefully looking into the MBA program. But, nearly half of the search terms are unrelated to UCI or MBA programs (“irvine spectrum”, “irvine weather”, “irvine ca map”, and so on). The total spending on irrelevant search results sums up to around $1,000. In conclusion, Merage’s campaign is inefficiently allocating their spend on search results that do not obtain any conversion or benefit.</p>
+</div>
+</div>
+<div id="part-4.-recommendation" class="section level1">
+<h1>Part 4. Recommendation</h1>
+<ol style="list-style-type: decimal">
+<li><p>According to the lead source analysis and platform analysis, most prospects start inquiring about Merage’s MBA programs in September and January while October and November have a relatively high CTR, suggesting more prospects are engaging with the ads. Our suggestion is that September to January is the best timing for MBA advertising.</p></li>
+<li><p>Another aspect of Merage’s campaign that the team can consider is allocating their budget from LinkedIn InMail to Google Ads. By understanding the definition of each metric on each platform, Merage can then efficiently strategize their marketing campaign. At times, the social platform analytics tend to boost its statistics of advertisements to appear successful but in reality, it does not reflect how well the ad is performing.</p></li>
+<li><p>Along with that, Merage can regularly monitor search terms and remove some poor performing keywords. By selecting more direct competing schools as the keywords, like UCLA, UCI ads may attract more relevant students who are interested in MBA programs.</p></li>
+<li><p>Lastly, Merage can also exclude negative search terms that UCI does not necessarily want to associate with. By removing harmful keywords like mentioned previously, marketing campaigns can allocate their money more effectively.</p></li>
+</ol>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = false;
+    options.smoothScroll = false;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

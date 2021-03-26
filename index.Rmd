@@ -1,0 +1,706 @@
+---
+title: "UCI Merage Online Advertising Analysis"
+author: "Huiyin(Cloris) He"
+date: "3/26/2021"
+output:
+  html_document:
+    toc: True
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+
+```{r,include=FALSE}
+library(readxl)
+library(dplyr)
+library(stringr)
+library(glmnet)
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(networkD3)
+library(imager)
+library(caret)
+library("DMwR")
+```
+
+# Part 1. Lead Source Analysis 
+
+*Lead Source: the source of applicants enter the system*
+
+```{r,include=FALSE}
+ftapp <- readxl::read_excel("~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/FTMBA Lead Source - Applicant.xls.xlsx")
+ftinq <- readxl::read_excel("~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/FTMBA Lead Source - Inquiry.xls.xlsx")
+data_ft <- rbind(ftapp, ftinq)
+
+feapp <- readxl::read_excel("~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/FEMBA Lead Source - Applicant.xls.xlsx")
+feinq <- readxl::read_excel("~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/FEMBA Lead Source - Inquiry.xls.xlsx")
+data_fe <- rbind(feapp, feinq)
+
+lead <- readxl::read_excel("~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/2019 Applicants - All Lead Sources.xls.xlsx") %>%
+  filter(Programs == "Fully Employed MBA" | Programs == "Full-Time MBA")
+```
+
+
+```{r,include=FALSE}
+## Data Cleaning ####
+### Combining FE and FT ####
+data_ft$Program <- "FT"
+data_fe$Program <- "FE"
+data <- rbind(data_ft, data_fe)
+
+### Dummy Variables ####
+#### status ####
+data$status_bin <- ifelse(data$`Last App Status` == "Enrolled", 1, 0)
+
+#### program ####
+data$FT <- ifelse(data$Program == "FT", 1, 0)
+
+#### gender ####
+data$gender <- ifelse(data$`Salutation` == "M." | 
+                        data$`Salutation` == "Mr.", 1,
+                      ifelse(data$`Salutation` == "Ms." | 
+                               data$`Salutation` == "Mrs.", 0, ""))
+
+# lead source category
+data$lead_categ <- ifelse(
+  data$`Lead Source` == "Facebook" | data$`Lead Source` == "LinkedIn", "social",
+  ifelse(data$`Lead Source` == "GMASS List Upload" |
+           data$`Lead Source` == "Hobsons Legacy Data" |
+           data$`Lead Source` == "Qualified List Upload" |
+           data$`Lead Source` == "Unqualified List Upload" | 
+           data$`Lead Source` == "Internal Inquiry Form","uploads",
+         ifelse(data$`Lead Source` == "GMAT Score Sender" | 
+                  data$`Lead Source` == "GRE Score Sender", "scores",
+                ifelse(data$`Lead Source` == "Forte Forum" | 
+                         data$`Lead Source` == "Online Application" | 
+                         data$`Lead Source` == "Web Inquiry Form", "online",
+                       ifelse(data$`Lead Source` == "Events" | 
+                                data$`Lead Source` == "Online Event Registration" |
+                                data$`Lead Source` == "World MBA Tour" |
+                                data$`Lead Source` == "Grad Fair", "events",
+                              "others")))))
+
+### Time Variables ####
+# Create a variable of the creation month and year
+data$start_month <- month(as.POSIXlt(data$`Pardot Created Date`, 
+                                     format="%Y/%m/%d %H:%M"))
+data$start_year <- year(as.POSIXlt(data$`Pardot Created Date`,
+                                   format="%Y/%m/%d %H:%M"))
+
+# time difference between pardot created and modified
+options(digits=2)
+# duration in days
+data$duration <- difftime(data$`Last Modified Date`, data$`Pardot Created Date`,
+                          tz = "PST", units = "days") %>% as.numeric()
+
+# export data
+#write.csv(data, "FEnFT_data", append = FALSE, sep = " ", dec = ".",
+#            row.names = TRUE, col.names = TRUE)
+```
+
+## A. Exploratory Data Analysis
+
+```{r,include=FALSE}
+## Exploratory Data Analysis ####
+print("Latest modified: 2018-09-03 ~ 2020-01-29")
+
+# FT vs FE
+table(data$Program)
+prop.table(table(data$Program))*100
+```
+
+```{r}
+# FT VS FE
+ggplot(data,aes(x = Program)) + geom_bar()
+```
+
+```{r,include=FALSE}
+# Distribution of inquiry and application stages
+table(data$`Student Stage`,useNA = "always")
+prop.table(table(data$`Student Stage`,useNA = "always"))*100
+```
+
+```{r}
+# Distribution of inquiry and application stages
+ggplot(data,aes(x = forcats::fct_infreq(`Student Stage`))) + #infreg sort by freq
+  geom_bar() + 
+  labs(x = "Application Stages", y = "Count") 
+
+# Application each year
+ggplot(data, aes(x = `start_year`)) +
+  geom_bar() +
+  labs(x = "Account Created in _ Year", y = "Count")
+
+# Application each month
+ggplot(data, aes(x = `start_month`)) +
+  geom_bar() + labs(x = "Account Created in _ Month", y = "Count") 
+
+# Application stages breakdown by year
+ggplot(data, aes(x = forcats::fct_infreq(`Student Stage`))) +
+  geom_bar() +
+  facet_wrap(facets = vars(start_year)) +
+  labs(x = "Application Stages", y = "Count")
+
+# Application stages breakdown by Program
+ggplot(data, aes(x = forcats::fct_infreq(`Student Stage`))) +
+  geom_bar() +
+  facet_wrap(facets = vars(Program)) +
+  labs(x = "Application Stages", y = "Count")
+```
+
+```{r,include=FALSE}
+# Distribution of application status
+table(data$`Last App Status`,useNA = "always")
+prop.table(table(data$`Last App Status`,useNA = "always"))*100
+
+# inquiry
+table(rbind(ftinq, feinq)$`Last App Status`,useNA = "always")
+# applied
+table(rbind(ftapp, feapp)$`Last App Status`,useNA = "always")
+```
+
+```{r}
+# Distribution of application status
+ggplot(data,aes(x = forcats::fct_infreq(`Last App Status`))) + 
+  geom_bar()
+
+ggplot(data[!is.na(data$`Last App Status`),],
+       aes(x = forcats::fct_infreq(`Last App Status`))) + 
+  geom_bar() +
+  labs(x = "Last App Status Excluding NA", y = "Count")
+
+### Sankey diagram for an overall understanding ####
+links <- data.frame(
+  source=c("Potential applicants","Potential applicants", "Applied", "Applied",
+           "Applied", "Applied", "Applied", "Archived (with result)", 
+           "Archived (with result)", "Archived (with result)", "Inquired only",
+           "Inquired only","Inquired only","Inquired only"),
+  target=c("Inquired only","Applied", "Archived (with result)", "Incomplete", 
+           "In Progress", "Withdraw", "<NA>","Deny", "Decline", "Enrolled",
+           "<NA>", "In Progress", "Incomplete", "Withdraw"), 
+  value=c(5114,1171, 418, 1, 7, 1, 743, 206, 84, 129,4471, 604,20, 19)
+)
+nodes <- data.frame(
+  name=c(as.character(links$source), 
+         as.character(links$target)) %>% unique()
+)
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "IDsource", Target = "IDtarget",
+                   Value = "value", NodeID = "name", 
+                   sinksRight=FALSE)
+p
+```
+From the Sankey diagram, we see that a majority of the applicants do not apply but instead submit an inquiry to learn more about the programs offered.
+
+From our dataset, out of the 6,285 people, 81% inquired but less than 20% actually apply. Among those who applied, 35% of the applications are archived meaning the application process is complete. Of those who submitted an application, half of them were denied, 20% declined the school’s offer, while 30% enrolled into the program. We also observed that only 2% of those who inquired will also enroll into the program.
+
+
+```{r,include=FALSE}
+# Distribution of salutation
+table(data$`Salutation`,useNA = "always")
+prop.table(table(data$`Salutation`,useNA = "always"))*100
+```
+
+```{r}
+# Distribution of salutation
+ggplot(data,aes(x = Salutation)) + geom_bar()
+
+# Distribution of the lead source
+table(data$`Lead Source`,useNA = "always")
+
+# lead source with our category
+table(data$lead_categ,useNA = "always")
+
+# Distribution of the time it takes to apply, excluding inquiries
+ggplot(data[data$`Student Stage` != "Inquiry",], 
+       aes(x = duration, fill = `Last App Status`)) + 
+  geom_histogram(bins = 20, position = "stack") + 
+  labs(x = "Duration (days)", y = "Count")
+
+# subset: look at data between 100 - 500 days
+ggplot(subset(data[data$`Student Stage` != "Inquiry",],
+              duration>=100 & duration < 500), 
+       aes(x = duration, fill = `Last App Status`)) + 
+  geom_histogram(bins = 20, position = "stack") + 
+  labs(x = "Duration (days)", y = "Count")
+```
+
+We observed the duration of time applicants took to apply. The bar chart shows the number of days it took to apply versus the frequency of applicants. Because most of the data points fall between Day 100 and Day
+400, we focused on that specific time range. Our dataset contains a significant amount of NA values but the number of NA values drop significantly after Day 175. We assume that this is because applicants will consider whether to apply for five months before they drop it completely.
+
+```{r message=FALSE, warning=FALSE}
+# Application enrollment by month
+ggplot(data[data$`Last App Status` != "NA",], 
+       aes(x = `start_month`, fill = `Last App Status`)) +
+  geom_bar() + labs(x = "Start Month and Status (no NA)", y = "Count") +
+  scale_x_discrete(breaks=factor(1:12), limit = c(factor(1:12)))
+```
+
+
+The bar chart portrays when students first fill out an inquiry form. We can see that there is an increase of people seeking information on the Merage website from September to January. From a marketing standpoint, we can conclude that the best time for Merage to launch their marketing campaign is during September to January where there is a five month window to persuade a prospect to apply.
+
+```{r message=FALSE}
+# Duration (days) by start month
+ggplot(subset(data[data$`Student Stage` != "Inquiry",],
+              duration>=100 & duration < 500 & is.na(`Last App Status`) == FALSE), 
+       aes(x = duration, fill = `Last App Status`)) + geom_histogram(position = "dodge") +
+  facet_wrap(facets = vars(start_month)) +
+  labs(x = "Duration (days) by start month, excluding NA", y = "Count")
+
+# Duration (days) by start month, Enrolled Only
+ggplot(subset(data[data$`Student Stage` != "Inquiry",],
+              duration>=100 & duration < 500 & `Last App Status` == "Enrolled"), 
+       aes(x = duration, fill = `Last App Status`)) + geom_histogram(position = "dodge") +
+  facet_wrap(facets = vars(start_month)) +
+  labs(x = "Duration (days) by start month, Enrolled Only", y = "Count")
+```
+
+```{r echo=FALSE, fig.height=30, fig.width=30}
+plot(load.image('~/Desktop/frequency of lead source.jpg'))
+```
+
+We can see where the source of applicants enter the system or also known as the lead source. Some applicants fill out a form to get more information by submitting a Web Inquiry Form, others attend an event (Online Event Registration) but the majority start an application without attending an event or inquiring through the web form (Online Application).
+
+## B. Logistic Regression
+
+```{r message=FALSE}
+## Regression Model ####
+data_m <- data[,9:15] # the data we will use for the model
+# eyeballing variable distribution
+before_log <- ggplot(data_m, aes(duration)) + geom_histogram()
+before_log
+# duration variable take log
+data_m$duration <- log(data_m$duration+1)
+after_log <- ggplot(data_m, aes(duration)) + geom_histogram()
+after_log
+
+# most variables are factors, not numeric
+data_m[,1:6] <- lapply((data_m[,1:6]),factor)
+```
+
+The distribution of the duration variable showed that it is heavily right skewed so log transformation of the duration variable is necessary.
+
+### Resampling 
+
+In our dataset, there is a drastic difference from the number of applicants that chose not to enroll even after receiving an acceptance offer (129 vs 942). Due to this significant imbalance, we proceeded to resample our dataset using SMOTE (Synthetic Minority Oversampling Technique).
+
+```{r}
+### SMOTE ####
+data_m <- as.data.frame(data_m)
+table(data$status_bin)
+```
+
+### Building the model
+
+```{r,include=FALSE}
+set.seed(230)
+data_smote1 <- SMOTE(status_bin ~.,data_m, perc.over = 600, k=5, perc.under = 770)
+table(data_smote1$status_bin)
+
+# creating training data
+Train <- createDataPartition(data_smote1$status_bin, p=0.8, list=FALSE)
+training <- data_smote1[ Train, ]
+testing <- data_smote1[ -Train, ]
+
+### Logistic Regression ####
+####  model 1 ####
+m.smote1 <- glm(status_bin ~ . -status_bin, data = training, family = binomial())
+summary(m.smote1)
+```
+
+```{r,include=FALSE}
+#### model 2: larger k (from 5 to 8) ####
+set.seed(130)
+data_smote2 <- SMOTE(status_bin ~.,data_m, perc.over = 600, k=8, perc.under = 780)
+table(data_smote2$status_bin)
+
+Train2 <- createDataPartition(data_smote2$status_bin, p=0.8, list=FALSE)
+training2 <- data_smote2[ Train2, ]
+testing2 <- data_smote2[ -Train2, ]
+
+m.smote2 <- glm(status_bin ~ . -status_bin, data = training2, family = binomial())
+summary(m.smote2)
+```
+
+
+```{r}
+#### model 3: larger k (different percentage, lower total samples) ####
+set.seed(162)
+data_smote3 <- SMOTE(status_bin ~.,data_m, perc.over = 200, k=5, perc.under = 1000)
+table(data_smote3$status_bin)
+
+Train3 <- createDataPartition(data_smote3$status_bin, p=0.8, list=FALSE)
+training3 <- data_smote3[ Train3, ]
+testing3 <- data_smote3[ -Train3, ]
+
+m.smote3 <- glm(status_bin ~ . -status_bin, data = training3, family = binomial())
+summary(m.smote3)
+```
+
+
+The result shows that many variables are insignificant to our model. Those that are statistically significant to our model are negative, meaning that if an applicant falls into one of the categories, it will actually decrease their chances of being enrolled. 
+
+Even though insignificant, start_month 8,10,11,12 shows a positive relationship with enrollment. These months do have some positive impacts on enrollment. 
+
+However, the issue with this model is that the dataset and model do not take other factors into account of whether a student will be enrolled or not such as
+GPA, school, career path, and so on. There may be potentially a more significant relationship if we examined these predictors in order to accurately predict the outcome of an applicant’s status.
+
+# Part 2. Social Platform Analysis 
+
+## A. Cross-Platform Analysis
+```{R echo=FALSE, fig.height=10, fig.width=20}
+plot(load.image('~/Desktop/campaign spending on each platform.jpg'))
+
+```
+
+Merage spent most of their advertising budget on LinkedIn and Google Ads. From these campaigns, Google Search Ads and LinkedIn Sponsored InMail generated the most advertising spend. According to Merage's marketing team, we were informed that more money is spent towards LinkedIn for advertising MBA programs because of the higher quality conversion rate, meaning that more candidates are admitted from LinkedIn.
+
+```{R echo=FALSE, fig.height=10, fig.width=20}
+plot(load.image('~/Desktop/CTR of platform & campaign.jpg'))
+```
+
+The click-through-rate (CTR) measures the percentage of people who view and click on Merage’s ads. Using the CTR to evaluate the social platform’s performance, we found that LinkedIn has an extremely high CTR of 65% because of LinkedIn Sponsored InMail.
+
+However, after researching the actual metric definition of InMail, the CTR is actually calculated as the number of messages opened by a user divided by the total number of InMail sent. Users are naturally curious about what is being sent to their inbox and therefore, they are more inclined to open the message. Users must click on the InMail to view the actual content of the advertisement. Because InMail measures its CTR based on if a user clicks on the message but not if they click on the link within, we proceeded to calculate the rate of call to action instead. Because the action of a user opening an InMail has essentially the same impact as a user seeing a display advertisement on Google or Facebook, it is not a significant impact. So, by measuring the call to action rate instead, this determines how many users actually interact with the advertisement based on the number of button or hyperlink clicks.
+
+```{r echo=FALSE, fig.height=10, fig.width=20}
+plot(load.image('~/Desktop/updated CTR.jpg'))
+```
+
+
+After updating our formulation to calculate CTA, this is a better measure to test the effectiveness of LinkedIn’s campaigns. The CTR of InMail drops from 65% to 3% but LinkedIn still remains the highest among all campaign types across the platform.
+
+We then evaluated the cost-per-click (CPC) in order to identify how much money Merage spends on each click on various social platforms. The CPC for InMail is higher than other campaign types most likely due to the fact that its charged by how many messages are sent. As a result, Merage may need to allocate less money on LinkedIn InMail because it is costly.
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/CPC & CTR by campaign.jpg'))
+```
+
+Observing that InMail has both a high CTR and CPC, it is quite a costly approach but it does attract potential applicants. On the other hand, the CTR of Facebook and Google display ads are very low, assuming that prospects that visit websites typically do not pay much attention to apparent advertisement. Consequently, even though the CPC is low, display ads might not be enough to drive a call-to-action.
+
+## B. Facebook & Instagram
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/FB vs Ins. CPC & CTR.jpg'))
+```
+The sponsored post on Facebook for FEMBA (orange dot) did not generate a high CTR despite its high cost to run the marketing campaign. After noticing Facebook’s ineffective advertisements, Merage can consider changing either the message, visuals, or placement of the advertisement in order to improve its conversions.
+
+Whereas for the Lead Gen for FTMBA campaign (pink dot), the campaign produced a high CTR at a low cost. Because of the high conversions of the FTMBA’s advertisements, Merage can consider allocating the budget more towards this campaign.
+
+## C. Google Ads
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/total cost and CTR of google.jpg'))
+```
+
+The tree map shows the various sizes of the total cost and CTR for each campaign displayed on the Google platform. The colors represent the CTR and the size of the box represent the total cost. From the visualization, the search ads for FEMBA have the highest spending and a significantly high CTR. Additionally, the search ads for FTMBA also generated a high CTR with relatively low costs. From this observation, we suggest that Merage may want to shift their focus from display ads to Google search ads instead.
+
+## D. Linkedin
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/total spend & CTR of lk.jpg'))
+```
+
+The tree map depicts the total spending of each campaign and its respective
+CTR. There is a disconnect between the size and the color, meaning that the marketing team is not distributing most of the budget to the best performing campaigns. For example, FEMBA Inmail LA & OC October and November campaigns have high CTR but not much spending compared to the campaigns in January and June.
+
+We noticed that October and November are the most popular times to apply for the MBA program. January is the standard MBA deadline for the second round of application submissions along with the last deadline being in June, which explains the low CTR for those two months. Comparatively, October and November are the most efficient time to attract students. Therefore, the team may consider putting more of the budget on the October and November campaigns.
+
+
+# Part 3. Google Keyword Analysis
+```{r,include=FALSE}
+# Google keyword Models####
+#read data and reformat 
+keyword=read.csv('~/Documents/UCI/3. WINTER/BANA 277. CUST & SOCIAL ANLYT/Final Project/from Levi/UCI Google Ads FTMBA and FEMBA Search terms Report Sept 2018 - Jan 2020.csv')
+keyword=keyword[-c(1),]
+colnames(keyword) <- as.character(unlist(keyword[1,]))
+keyword = keyword[-1, ]
+keyword=keyword[keyword$`Match type`!='',]
+```
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/wordcloud.jpg'))
+```
+
+```{R,include=FALSE}
+#change to character for regrex
+keyword$Keyword=as.character(keyword$Keyword)
+
+#list of unique keyword
+klist=unique(unlist(strsplit(keyword$Keyword, split=c("\\W+"))))
+klist=klist[-1] #don't need space
+#remove irrelevant 
+klist=klist[ !(klist%in% c('in','no','for',
+                           'part','time',
+                           '2','two','years','year','programs',
+                           'flex','fully','full',
+                           'requirement','university','evening','uc'))]
+
+#create new variables
+for (j in 1:length(klist)){
+  keyword[klist[j]]=0}
+
+#create dummies
+for (i in 1:nrow(keyword)){
+  for (j in 1:length(klist)){
+    if (str_detect(keyword$Keyword,klist[j])[i]==TRUE){
+      keyword[klist[j]][i,]=1
+    }
+    else{keyword[klist[j]][i,]=0}
+  }}
+
+#create dummies for combined terms
+for (i in 1:nrow(keyword)){
+  if (str_detect(keyword$Keyword,'online mba')[i]==TRUE){
+    keyword$online_mba[i]=1
+  }
+  else{keyword$online_mba[i]=0}
+  if (str_detect(keyword$Keyword,'part time|part|parttime')[i]==TRUE){
+    keyword$parttime[i]=1
+  }
+  else{keyword$parttime[i]=0}
+  if (str_detect(keyword$Keyword,'2|two')[i]==TRUE){
+    keyword$two_yr[i]=1
+  }
+  else{keyword$two_yr[i]=0}
+  if (str_detect(keyword$Keyword,'program|programs')[i]==TRUE){
+    keyword$program[i]=1
+  }
+  else{keyword$program[i]=0}
+  if (str_detect(keyword$Keyword,'flex')[i]==TRUE){
+    keyword$flexible[i]=1
+  }
+  else{keyword$flexible[i]=0}
+  if (str_detect(keyword$Keyword,'full|full time')[i]==TRUE){
+    keyword$fulltime[i]=1
+  }
+  else{keyword$fulltime[i]=0}
+  if (str_detect(keyword$Keyword,'irvine unversity')[i]==TRUE){
+    keyword$irvine_university[i]=1
+  }
+  else{keyword$irvine_university[i]=0}
+  if (str_detect(keyword$Keyword,'evening mba')[i]==TRUE){
+    keyword$evening_mba[i]=1
+  }
+  else{keyword$evening_mba[i]=0}
+  if (str_detect(keyword$Keyword,'uc irvine|uci')[i]==TRUE){
+    keyword$uci[i]=1
+  }
+  else{keyword$uci[i]=0}
+  
+}
+
+## interaction rate as dependent var #####
+#clean it
+#any(keyword$`Interaction rate`==' --')
+#sum(keyword$`Interaction rate`=='200.00%')
+keyword=keyword[keyword$`Interaction rate`!='200.00%',]
+keyword$`Interaction rate`=as.character(keyword$`Interaction rate`)
+keyword$`Interaction rate`[keyword$`Interaction rate`==' --']=0
+
+#convert type
+colnames(keyword)[colnames(keyword)=='Interaction rate']='inter_rate'
+keyword$`inter_rate`=as.numeric(sub("%","",keyword$`inter_rate`))/100
+
+## model setting ####
+#set x and y and lambda
+xvar=data.matrix(keyword[,(ncol(keyword)-30):ncol(keyword)])
+yvar=keyword$`inter_rate`
+lamb=seq(0.0001, 0.1, by = 0.0001)
+
+#split training and testing 
+set.seed(123)
+train = sample(1:nrow(xvar), nrow(xvar)*0.7)
+test=(-train)
+```
+
+## Ridge Regression
+```{r}
+## ridge regression####
+#find the best lambda
+set.seed(123)
+cv_output1 <- cv.glmnet(xvar[train,], yvar[train], alpha=0,
+                        lambda = lamb)
+best_lambda1 <- cv_output1$lambda.min
+best_lambda1=format(round(best_lambda1, 7), nsmall = 7)
+
+#plot the lambda
+plot(cv_output1) 
+#the cross-validation curve (red dotted line)
+#The intervals estimate variance of the loss metric (red dots). 
+#They're computed using CV.
+#The vertical lines show the locations of 𝜆min (minimum mean cross-validated error)
+#The numbers across the top are the number of nonzero coefficient estimates.
+
+#the model using the lambda value
+ridge <- glmnet(xvar[train,], yvar[train], alpha = 0, 
+                lambda = best_lambda1)
+
+#perform on test data
+pred1 <- predict(ridge, s = best_lambda1, newx = xvar[test,])
+
+#coef
+#coef(ridge)
+
+#check MSE
+MSE_ridge=mean((pred1-yvar[test])^2)
+MSE_ridge=format(round(MSE_ridge, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse1 = sum((pred1 - yvar[test])^2)
+#R-squared
+r=(1-sse1/sst)
+r=format(round(r, 7), nsmall = 7)
+
+ridge_perf=data.frame(MSE_ridge=MSE_ridge,R_squared_ridge=r)
+ridge_perf
+```
+
+## Lasso Regression
+
+```{r}
+## lasso####
+#k-fold cross-validation to find optimal lambda value
+#default k=10
+set.seed(123)
+cv_output = cv.glmnet(xvar[train,], yvar[train], alpha=1,
+                      lambda = lamb)
+
+#optimal lambda value that minimizes test MSE
+best_lambda = cv_output$lambda.min
+best_lambda
+
+#plot lambda
+plot(cv_output) 
+
+# Rebuilding the model with best lamda value identified
+lasso = glmnet(xvar[train,], yvar[train], alpha = 1, lambda = best_lambda)
+#coef(lasso)
+
+#predict on test data
+pred = predict(lasso, s = best_lambda, newx = xvar[test,])
+
+#check MSE
+MSE_lasso=mean((pred-yvar[test])^2)
+MSE_lasso=format(round(MSE_lasso, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse = sum((pred - yvar[test])^2)
+#R-squared
+r1=1-sse/sst
+r1=format(round(r1, 7), nsmall = 7)
+
+lasso_perf=data.frame(MSE_lasso=MSE_lasso,R_squared_lasso=r1)
+lasso_perf
+```
+
+## Elastic Net Regression
+
+```{r}
+## elastic net####
+#test for the best alpha
+set.seed(123)
+list_fit=list()
+for (i in 0:10){
+  fit_name=paste0('alpha',i/10)
+  list_fit[[fit_name]]=cv.glmnet(xvar[train,],yvar[train],
+                                 alpha=i/10,lambda = lamb)
+}
+
+#table that store the MSE
+results=data.frame()
+for (i in 0:10){
+  fit_name=paste0('alpha',i/10)
+  predicted=predict(list_fit[[fit_name]],
+                    s=list_fit[[fit_name]]$lambda.min,
+                    newx=xvar[test,])
+  mse=mean((predicted-yvar[test])^2)
+  d=data.frame(alpha=i/10,mse=mse,fit_name=fit_name,
+               lambda=list_fit[[fit_name]]$lambda.min)
+  results=rbind(results,d)
+}
+results
+
+#the best alpha level
+alpha_level=results$fit_name[results$mse==min(results$mse)]
+alpha_level
+
+#build model based on the best alpha
+elastic <- glmnet(xvar[train,], yvar[train], alpha = 0.7, 
+                  lambda = results$lambda[results$fit_name==alpha_level])
+
+pred_elas <- predict(elastic, s = results$lambda[results$fit_name==alpha_level],
+                     newx = xvar[test,])
+
+#check MSE
+MSE_elas=mean((pred_elas-yvar[test])^2)
+MSE_elas=format(round(MSE_elas, 7), nsmall = 7)
+
+#prediction performance
+#sum of squares total
+sst = sum((yvar - mean(yvar))^2)
+#sum of squares error
+sse_elas = sum((pred_elas - yvar[test])^2)
+#R-squared
+r2=1-sse_elas/sst
+r2=format(round(r2, 7), nsmall = 7)
+
+elas_perf=data.frame(MSE_elas=MSE_elas,R_squared_elas=r2)
+elas_perf
+
+#compare 3 models
+comp=data.frame(Model=c('ridge','lasso','elastic'),
+                MSE=0,
+                R_square=0)
+comp[1,2]=ridge_perf[1]
+comp[2,2]=lasso_perf[1]
+comp[3,2]=elas_perf[1]
+comp[1,3]=ridge_perf[2]
+comp[2,3]=lasso_perf[2]
+comp[3,3]=elas_perf[2]
+comp
+
+coef(elastic)
+```
+
+```{r,include=FALSE}
+#coefficiant table
+coef=coef(elastic)
+coef_t=cbind(data.frame(colnames(xvar)),data.frame(matrix(coef)[-1]))
+colnames(coef_t)=c('vars','coef')
+coef_t
+```
+
+Comparing the results from three models, we concluded that the Elastic Net model has the best performance.
+
+Merage selected certain keywords of neighboring schools (“pepperdine”, “usc”) because we assume that there is a higher chance of local prospects residing in Southern California that may take interest in UCI and click on the link. The results of the nearby schools show that the coefficients have a negative effect on the interaction rate, suggesting that searching these other schools will not help Merage improve their interaction rate. When prospects intentionally search for other schools, they will not click on Merage’s advertisements despite the link being displayed in the Google search results. Ultimately, setting up these two keywords for nearby schools does not benefit Merage’s campaigning. 
+
+Along with that, the results show that “irvine_university” was eliminated from our model, indicating that it is not a significant feature on affecting interaction rate.
+
+```{r echo=FALSE, fig.height=20, fig.width=20}
+plot(load.image('~/Desktop/irvine uni.jpg'))
+```
+
+With further research, we noticed that this term is very broad and includes unrelated search words. To better evaluate the relation between target keywords and actual search terms, we reviewed all the matched search terms of the broad match term, “irvine_university.” We reviewed the search terms and examined the search records of someone who potentially was purposefully looking into the MBA program. But, nearly half of the search terms are unrelated to UCI or MBA programs (“irvine spectrum”, “irvine weather”, “irvine ca map”, and so on). The total spending on irrelevant search results sums up to around $1,000. In conclusion, Merage’s campaign is inefficiently allocating their spend on search results that do not obtain any conversion or benefit.
+
+# Part 4. Recommendation
+
+1. According to the lead source analysis and platform analysis, most prospects start inquiring about Merage’s MBA programs in September and January while October and November have a relatively high CTR, suggesting more prospects are engaging with the ads. Our suggestion is that September to January is the best timing for MBA advertising.
+
+2. Another aspect of Merage's campaign that the team can consider is allocating their budget from LinkedIn InMail to Google Ads. By understanding the definition of each metric on each platform, Merage can then efficiently strategize their marketing campaign. At times, the social platform analytics tend to boost its statistics of advertisements to appear successful but in reality, it does not reflect how well the ad is performing.
+
+3. Along with that, Merage can regularly monitor search terms and remove some poor performing keywords. By selecting more direct competing schools as the keywords, like UCLA, UCI ads may attract more relevant students who are interested in MBA programs.
+
+4. Lastly, Merage can also exclude negative search terms that UCI does not necessarily want to associate with. By removing harmful keywords like mentioned previously, marketing campaigns can allocate their money more effectively.
+
