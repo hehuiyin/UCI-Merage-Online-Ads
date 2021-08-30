@@ -77,11 +77,12 @@ We noticed that October and November are the most popular times to apply for the
 
 ## Google Keyword Analysis
 
-* The dataset also includes the Google search terms and keywords that Merage specifically chose for their Google search ad campaign. The following analysis evaluates keywords and search terms that either benefit or harm the school's attraction.
-* In order to examine the correlation between interaction rate and keywords, we ran a regression model to understand this relationship. Our dependent variable, interaction rate, measures the rate of prospects that clicked on the Google search link. After converting the 31 keywords into dummy variables, we decided to use a regularization method because of the 1,400 observations in order to avoid overfitting.
-  + **Ridge Regression
-  + **Lasso Regression
-  + **Elastic Net Regularization******
+The dataset also includes the Google search terms and keywords that Merage specifically chose for their Google search ad campaign. The following analysis evaluates keywords and search terms that either benefit or harm the school's attraction.
+
+In order to examine the correlation between interaction rate and keywords, we ran a regression model to understand this relationship. Our dependent variable, interaction rate, measures the rate of prospects that clicked on the Google search link. After converting the 31 keywords into dummy variables, we decided to use a regularization method because of the 1,400 observations in order to avoid overfitting.
+  + **Ridge Regression**
+  + **Lasso Regression**
+  + **Elastic Net Regularization**
 
 <img width="261" alt="Screen Shot 2021-08-30 at 14 49 36" src="https://user-images.githubusercontent.com/73683982/131410329-2f28ca71-be95-4c2a-b970-89f17c51b324.png">
 
